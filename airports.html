@@ -1,0 +1,120 @@
+<html lang="en">
+  <head>
+    <base target="_top" />
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1"
+    />
+
+    <title>Airport Routing With Neo4j</title>
+
+    <!-- TODO: add favicon -->
+    <link
+      rel="shortcut icon"
+      type="image/x-icon"
+      href="docs/images/favicon.ico"
+    />
+
+    <!-- CSS for leaflet and leaflet-geoman plugin -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.2/dist/leaflet.css"
+      integrity="sha256-sA+zWATbFveLLNqWO2gtiw3HL/lh1giY/Inf1BJ0z14="
+      crossorigin=""
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.css"
+    />
+
+    <!-- Load JavaScript for leaflet, leaflet-geoman plugin, turf.js, and neo4j-driver -->
+    <script
+      src="https://unpkg.com/leaflet@1.9.2/dist/leaflet.js"
+      integrity="sha256-o9N1jGDZrf5tS+Ft4gbIK7mYMipq9lqpVJ91xHSyKhg="
+      crossorigin=""
+    ></script>
+    
+    <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@latest/dist/leaflet-geoman.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://unpkg.com/neo4j-driver"></script>
+
+    <!-- Fixed size map area -->
+    <style>
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      /* .leaflet-container {
+        width: 1000px;
+        height: 1000px;
+      } */
+    </style>
+  </head>
+  <body>
+    <!-- Fixed size map area -->
+    <div id="map" style="width: 100%; height: 100%"></div>
+    <!-- TODO: move this into it's own JavaScript file -->
+    <script>
+      /*
+      var driver = neo4j.driver(
+        "bolt://localhost:7687",
+        neo4j.auth.basic("neo4j", "neo4jneo")
+      );*/
+
+      var driver = neo4j.driver(
+        "neo4j://node-c5dgydnil5oxw.eastus.cloudapp.azure.com:7687",
+        neo4j.auth.basic('thangamani_durairaj','Globe@2025')
+      );
+
+
+      const map = L.map("map").setView([37.563434, -122.322255], 3);
+
+      const tiles = L.tileLayer(
+        "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+          maxZoom: 19,
+          attribution:
+            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        }
+      ).addTo(map);
+
+      const popup = L.popup();
+      var route = [];
+
+      const fetchAirportsQuery = `
+      MATCH (a:Location) 
+      RETURN a {
+        iata: a.Name,
+        latitude: a.lat,
+        longitude: a.lon
+      } AS Location
+      `;
+
+      var session = driver.session({
+        database: "neo4j",
+        defaultAccessMode: neo4j.session.READ,
+      });
+
+      session
+        .run(fetchAirportsQuery)
+        .then((result) => {
+          result.records.forEach((record) => {
+            const loc = record.get("Location");
+            console.log(loc);
+            L.marker([loc.latitude, loc.longitude])
+              .addTo(map)
+              .bindPopup(loc.iata)
+              .on("click", (e) => {
+                console.log(loc.iata);
+              });
+          });
+        })
+        .catch((error) => {
+          console.log(error);
+        })
+        .then(() => session.close());
+    </script>
+  </body>
+</html>
